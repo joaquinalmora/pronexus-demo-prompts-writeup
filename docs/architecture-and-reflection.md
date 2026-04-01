@@ -2,20 +2,20 @@
 
 ## System overview
 
-_Add your architecture summary here._
+The system is a Next.js app built around a single generate flow for producing LinkedIn posts about AI coding workflows. The frontend lets the user choose a voice preset and sends a request to /api/generate, where the backend loads local prompt and seed-data files, builds a layered prompt, and sends one structured request to OpenAI (GPT-4o). The model returns a strict JSON response with a style guide, trend brief, and weekly post batch, which is validated and checked for prompt leakage before being rendered in the UI.
 
 ## Data sources and ingestion approach
 
-_Describe the creator corpus, trend inputs, and refresh cadence._
+The system relies on a set of locally seeded inputs rather than pulling data live. The creator corpus (data/creators.json) includes representative posts along with tone and structural patterns, which are used to infer how strong posts are written without copying any actual content. Trend inputs (data/trends_seed.json) provide titles, summaries, and context around AI coding workflows, acting as a stand-in for real, current trends and feeding into the generated trend brief. Brand voice is defined in data/brand_voice.md, which sets constraints for tone, phrasing, and formatting. Keeping everything local makes the system more deterministic and reliable for a demo, since it removes dependency on external APIs or scraping, but it also means the content is less reflective of real-time trends.
 
 ## Prompting strategy
 
-_Explain how the system prompt, brand voice, and runtime constraints work together._
+Prompting is handled as a layered setup rather than a single instruction. The system prompt sets the quality bar by enforcing specificity, blocking generic phrasing, and defining what a strong post should include. On top of that, voice rules adjust tone based on the selected preset. Founder voice uses first person and leans on lived experience, while company voice stays neutral and focuses on systems and workflows. The runtime prompt then brings everything together by injecting the creator corpus, trend inputs, and brand voice, while also defining a strict JSON schema for the output. It includes instructions for scoring, linting, and similarity checks so those signals are generated alongside the posts. Everything is returned as structured JSON, which makes validation straightforward and allows the UI to reliably render both the posts and intermediate artifacts like the style guide and trend brief.
 
 ## Why these design choices
 
-_Summarize the main tradeoffs you made._
+Local seeded data was used to keep the system reliable and predictable. It makes debugging easier and avoids failures from external APIs or scraping, but it comes at the cost of real-time relevance. The system also relies on a single generation call, which keeps the architecture simple and ensures all outputs stay internally consistent, though it increases latency and puts more risk on that one step. Outputs are returned as JSON to make validation straightforward and ensure the UI can render everything deterministically, including signals like quality scores and lint warnings. Scoring and similarity checks are handled by the model itself, which was faster to implement but less consistent than a separate evaluation layer. Voice presets were added to show controllability within the same pipeline, even though they add some complexity to the prompt structure.
 
 ## Reflection and scaling
 
-_If you had more time, describe how you would make the system more intelligent, cost-effective, safer, and more scalable._
+The current system is static and built around a single generation call, so scaling it would require restructuring that. Data ingestion would need to move from locally seeded inputs to scheduled pipelines that pull from sources like Hacker News, Reddit, and product changelogs, then normalize and store that data for reuse. Generation itself should be split into stages such as style extraction, trend synthesis, post generation, and evaluation, which would make it possible to cache intermediate results and avoid repeating the same work. Evaluation would also need to move beyond model self-scoring, using embeddings or more explicit heuristics to make similarity and quality checks more reliable. Costs could be reduced by caching stable artifacts like style guides and trend briefs, and by using smaller models for parts of the pipeline. For scalability, the system should shift to async jobs and queues instead of a single synchronous request, allowing batch processing across users or topics. If I extended this further, I would add a feedback loop that uses post performance data: impressions, comments, or editorial selection, to influence the next generation cycle.
